@@ -14,7 +14,7 @@ fun main(args: Array<String>) {
     defineAst(outputDir, "Expr", listOf(
             "Binary   : Expr left, Token operator, Expr right",
             "Grouping : Expr expression",
-            "Literal  : Object value",
+            "Literal  : Any value",
             "Unary    : Token operator, Expr right"
     ))
 }
@@ -28,7 +28,7 @@ fun defineAst(outputDir: String, baseName: String, types: List<String>) {
 
     writer.println("abstract class $baseName {")
 
-    writer.println("\tabstract fun <R>acceptVisitor(visitor: Visitor<R>): R")
+    writer.println("\tabstract fun <R>accept(visitor: Visitor<R>): R")
     writer.println()
 
     defineVisitor(writer, baseName, types)
@@ -63,7 +63,7 @@ fun defineType(writer: PrintWriter, baseName: String, className: String, fields:
     }
 
     writer.println("\tclass $className($params) : $baseName(){")
-    writer.println("\t\toverride fun <R> acceptVisitor(visitor: Visitor<R>): R {")
+    writer.println("\t\toverride fun <R> accept(visitor: Visitor<R>): R {")
     writer.println("\t\t\treturn visitor.visit$className$baseName(this)")
     writer.println("\t\t}")
     writer.println("\t}")

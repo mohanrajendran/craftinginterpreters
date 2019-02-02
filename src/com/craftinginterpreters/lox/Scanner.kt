@@ -65,12 +65,11 @@ class Scanner(private val source: String) {
             '\n' -> line++
             '"' -> string()
             else -> {
-                if (c.isDigit())
-                    number()
-                else if (c.isLetter())
-                    identifier()
-                else
-                    error(line, "Unexpected character.")
+                when {
+                    c.isDigit() -> number()
+                    c.isLetter() -> identifier()
+                    else -> error(line, "Unexpected character.")
+                }
             }
         }
     }
@@ -79,7 +78,7 @@ class Scanner(private val source: String) {
         while (peek().isLetterOrDigit()) advance()
 
         val text = source.substring(start, current)
-        var type = keywords[text] ?: TokenType.IDENTIFIER
+        val type = keywords[text] ?: TokenType.IDENTIFIER
 
         addToken(type)
     }
