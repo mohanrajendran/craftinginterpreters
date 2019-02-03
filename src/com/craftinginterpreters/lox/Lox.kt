@@ -15,13 +15,15 @@ fun main(args: Array<String>) {
 }
 
 object Lox {
-    var hadError: Boolean = false
+    private var hadError: Boolean = false
+    private var hadRuntimeError: Boolean = false
+    private val interpreter: Interpreter = Interpreter()
 
     fun runFile(path: String) {
         val code = File(path).readText()
         run(code)
-        if (hadError)
-            exitProcess(65)
+        if (hadError) exitProcess(65)
+        if (hadRuntimeError) exitProcess(70)
     }
 
     fun runPrompt() {
@@ -34,19 +36,14 @@ object Lox {
     fun run(source: String) {
         val scanner = Scanner(source)
         val tokens = scanner.scanTokens()
-/*
-        tokens.forEach {
-            println(it)
-        }
-*/
+
         val parser = Parser(tokens)
         val expression = parser.parse()
 
-        if(hadError)
+        if (hadError)
             return
 
-        println(AstPrinter().print(expression!!))
-
+        interpreter.interpret(expression!!)
     }
 
     fun error(line: Int, message: String) {
@@ -63,6 +60,11 @@ object Lox {
             token.type == TokenType.EOF -> report(token.line, " at end", message)
             else -> report(token.line, " at '${token.lexeme}'", message)
         }
+    }
+
+    fun runtimeError(error: Interpreter.RuntimeError) {
+        System.err.println("${error.message}\n[line: ${error.token.line}]")
+        hadRuntimeError = true
     }
 }
 
