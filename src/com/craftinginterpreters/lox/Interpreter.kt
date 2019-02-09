@@ -1,12 +1,15 @@
 package com.craftinginterpreters.lox
 
-class Interpreter : Expr.Visitor<Any?> {
+class Interpreter : Expr.Visitor<Any?>, Stmt.Visitor<Any?> {
     class RuntimeError(val token: Token, message: String) : RuntimeException(message)
 
-    fun interpret(expression: Expr) {
+    private val environment = Environment()
+
+    fun interpret(statements: List<Stmt>) {
         try {
-            val value = evaluate(expression)
-            println(stringify(value))
+            statements.forEach {
+                execute(it)
+            }
         } catch (e: RuntimeError) {
             Lox.runtimeError(e)
         }
@@ -81,6 +84,10 @@ class Interpreter : Expr.Visitor<Any?> {
         }
     }
 
+    override fun visitVariableExpr(expr: Expr.Variable): Any? {
+        return environment.get(expr.name)
+    }
+
     private fun checkNumberOperand(operator: Token, operand: Any?): Double {
         when (operand) {
             is Double -> return operand
@@ -127,5 +134,33 @@ class Interpreter : Expr.Visitor<Any?> {
 
     private fun evaluate(expr: Expr): Any? {
         return expr.accept(this)
+    }
+
+    private fun execute(stmt: Stmt): Any? {
+        return stmt.accept(this)
+    }
+
+    override fun visitExpressionStmt(stmt: Stmt.Expression): Any? {
+        return evaluate(stmt.expression)
+    }
+
+    override fun visitPrintStmt(stmt: Stmt.Print): Any? {
+        val value = evaluate(stmt.expression)
+        println(stringify(value))
+        return null
+    }
+
+    override fun visitVarStmt(stmt: Stmt.Var): Any? {
+        val value = if (stmt.initializer != null) evaluate(stmt.initializer) else null
+
+        environment.define(stmt.name.lexeme, value)
+        return null
+    }
+
+    override fun visitAssignExpr(expr: Expr.Assign): Any? {
+        val value = evaluate(expr.value)
+
+        environment.assign(expr.name, value)
+        return value
     }
 }
