@@ -3,7 +3,7 @@ package com.craftinginterpreters.lox
 class Interpreter : Expr.Visitor<Any?>, Stmt.Visitor<Any?> {
     class RuntimeError(val token: Token, message: String) : RuntimeException(message)
 
-    private val environment = Environment()
+    private var environment = Environment()
 
     fun interpret(statements: List<Stmt>) {
         try {
@@ -138,6 +138,24 @@ class Interpreter : Expr.Visitor<Any?>, Stmt.Visitor<Any?> {
 
     private fun execute(stmt: Stmt): Any? {
         return stmt.accept(this)
+    }
+
+    private fun executeBlock(stmt: Stmt.Block, environment: Environment) {
+        val previous = this.environment
+        try {
+            this.environment = environment
+
+            stmt.statements.forEach {
+                execute(it)
+            }
+        } finally {
+            this.environment = previous
+        }
+    }
+
+    override fun visitBlockStmt(stmt: Stmt.Block): Any? {
+        executeBlock(stmt, Environment(environment))
+        return null
     }
 
     override fun visitExpressionStmt(stmt: Stmt.Expression): Any? {
