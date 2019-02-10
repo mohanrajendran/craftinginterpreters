@@ -43,7 +43,7 @@ object Lox {
         if (hadError)
             return
 
-        interpreter.interpret(statements as List<Stmt>)
+        interpreter.interpret(statements)
     }
 
     fun error(line: Int, message: String) {

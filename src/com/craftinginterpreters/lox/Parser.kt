@@ -5,10 +5,10 @@ class Parser(private val tokens: List<Token>) {
 
     private var current: Int = 0
 
-    fun parse(): List<Stmt?> {
-        val statements = ArrayList<Stmt?>()
+    fun parse(): List<Stmt> {
+        val statements = ArrayList<Stmt>()
         while (!isAtEnd()) {
-            statements.add(declaration())
+            statements.add(declaration()!!)
         }
         return statements
     }
@@ -31,10 +31,51 @@ class Parser(private val tokens: List<Token>) {
 
     private fun statement(): Stmt {
         return when {
+            match(TokenType.FOR) -> forStatement()
+            match(TokenType.IF) -> ifStatement()
             match(TokenType.PRINT) -> printStatement()
+            match(TokenType.WHILE) -> whileStatement()
             match(TokenType.LEFT_BRACE) -> return Stmt.Block(block())
             else -> expressionStatement()
         }
+    }
+
+    private fun forStatement(): Stmt {
+        consume(TokenType.LEFT_PAREN, "Expect '(' after 'for'.")
+
+        val initializer = when {
+            match(TokenType.SEMICOLON) -> null
+            match(TokenType.VAR) -> varDeclaration()
+            else -> expressionStatement()
+        }
+
+        var condition = if (!check(TokenType.SEMICOLON)) expression() else null
+        consume(TokenType.SEMICOLON, "Expect ';' after loop condition.")
+
+        val increment = if (!check(TokenType.RIGHT_PAREN)) expression() else null
+        consume(TokenType.RIGHT_PAREN, "Expect ')' after for clauses.")
+
+        var body = statement()
+
+        if (increment != null) body = Stmt.Block(arrayListOf(body, Stmt.Expression(increment)))
+
+        if (condition == null) condition = Expr.Literal(true)
+        body = Stmt.While(condition, body)
+
+        if (initializer != null) body = Stmt.Block(arrayListOf(initializer, body))
+
+        return body
+    }
+
+    private fun ifStatement(): Stmt {
+        consume(TokenType.LEFT_PAREN, "Expect '(' after 'if'.")
+        val condition = expression()
+        consume(TokenType.RIGHT_PAREN, "Expect ')' after if condition.")
+
+        val thenStmt = statement()
+        val elseStmt = if (match(TokenType.ELSE)) statement() else null
+
+        return Stmt.If(condition, thenStmt, elseStmt)
     }
 
     private fun printStatement(): Stmt {
@@ -52,6 +93,15 @@ class Parser(private val tokens: List<Token>) {
         return Stmt.Var(name, initializer)
     }
 
+    private fun whileStatement(): Stmt {
+        consume(TokenType.LEFT_PAREN, "Expect '(' after 'while'.")
+        val condition = expression()
+        consume(TokenType.RIGHT_PAREN, "Expect ')' after condition.")
+        val body = statement()
+
+        return Stmt.While(condition, body)
+    }
+
     private fun expressionStatement(): Stmt {
         val value = expression()
         consume(TokenType.SEMICOLON, "Expect ';' after value")
@@ -61,7 +111,7 @@ class Parser(private val tokens: List<Token>) {
     private fun block(): List<Stmt> {
         val statements = ArrayList<Stmt>()
 
-        while(!check(TokenType.RIGHT_BRACE) && !isAtEnd()) {
+        while (!check(TokenType.RIGHT_BRACE) && !isAtEnd()) {
             statements.add(declaration()!!)
         }
 
@@ -70,7 +120,7 @@ class Parser(private val tokens: List<Token>) {
     }
 
     private fun assignment(): Expr {
-        val expr = equality()
+        val expr = or()
 
         if (match(TokenType.EQUAL)) {
             val equals = previous()
@@ -82,6 +132,30 @@ class Parser(private val tokens: List<Token>) {
             }
 
             error(equals, "Invalid assignment target.")
+        }
+
+        return expr
+    }
+
+    private fun or(): Expr {
+        var expr = and()
+
+        while (match(TokenType.OR)) {
+            val operator = previous()
+            val right = and()
+            expr = Expr.Logical(expr, operator, right)
+        }
+
+        return expr
+    }
+
+    private fun and(): Expr {
+        var expr = equality()
+
+        while (match(TokenType.AND)) {
+            val operator = previous()
+            val right = equality()
+            expr = Expr.Logical(expr, operator, right)
         }
 
         return expr

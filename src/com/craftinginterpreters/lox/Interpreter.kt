@@ -1,6 +1,6 @@
 package com.craftinginterpreters.lox
 
-class Interpreter : Expr.Visitor<Any?>, Stmt.Visitor<Any?> {
+class Interpreter : Expr.Visitor<Any?>, Stmt.Visitor<Unit> {
     class RuntimeError(val token: Token, message: String) : RuntimeException(message)
 
     private var environment = Environment()
@@ -74,6 +74,17 @@ class Interpreter : Expr.Visitor<Any?>, Stmt.Visitor<Any?> {
         return expr.value
     }
 
+    override fun visitLogicalExpr(expr: Expr.Logical): Any? {
+        val left = evaluate(expr.left)
+
+        when {
+            expr.operator.type == TokenType.OR -> if (isTruthy(left)) return left
+            else -> if (!isTruthy(left)) return left
+        }
+
+        return evaluate(expr.right)
+    }
+
     override fun visitUnaryExpr(expr: Expr.Unary): Any? {
         val right = evaluate(expr.right)
 
@@ -136,8 +147,8 @@ class Interpreter : Expr.Visitor<Any?>, Stmt.Visitor<Any?> {
         return expr.accept(this)
     }
 
-    private fun execute(stmt: Stmt): Any? {
-        return stmt.accept(this)
+    private fun execute(stmt: Stmt) {
+        stmt.accept(this)
     }
 
     private fun executeBlock(stmt: Stmt.Block, environment: Environment) {
@@ -153,32 +164,41 @@ class Interpreter : Expr.Visitor<Any?>, Stmt.Visitor<Any?> {
         }
     }
 
-    override fun visitBlockStmt(stmt: Stmt.Block): Any? {
+    override fun visitBlockStmt(stmt: Stmt.Block) {
         executeBlock(stmt, Environment(environment))
-        return null
     }
 
-    override fun visitExpressionStmt(stmt: Stmt.Expression): Any? {
-        return evaluate(stmt.expression)
+    override fun visitExpressionStmt(stmt: Stmt.Expression) {
+        evaluate(stmt.expression)
     }
 
-    override fun visitPrintStmt(stmt: Stmt.Print): Any? {
+    override fun visitIfStmt(stmt: Stmt.If) {
+        when {
+            isTruthy(evaluate(stmt.condition)) -> execute(stmt.thenBranch)
+            stmt.elseBranch != null -> execute(stmt.elseBranch)
+        }
+    }
+
+    override fun visitPrintStmt(stmt: Stmt.Print) {
         val value = evaluate(stmt.expression)
         println(stringify(value))
-        return null
     }
 
-    override fun visitVarStmt(stmt: Stmt.Var): Any? {
+    override fun visitVarStmt(stmt: Stmt.Var) {
         val value = if (stmt.initializer != null) evaluate(stmt.initializer) else null
 
         environment.define(stmt.name.lexeme, value)
-        return null
     }
 
-    override fun visitAssignExpr(expr: Expr.Assign): Any? {
+    override fun visitWhileStmt(stmt: Stmt.While) {
+        while (isTruthy(evaluate(stmt.condition))) {
+            execute(stmt.body)
+        }
+    }
+
+    override fun visitAssignExpr(expr: Expr.Assign) {
         val value = evaluate(expr.value)
 
         environment.assign(expr.name, value)
-        return value
     }
 }
