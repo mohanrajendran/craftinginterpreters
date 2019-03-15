@@ -217,7 +217,34 @@ class Parser(private val tokens: List<Token>) {
             return Expr.Unary(operator, right)
         }
 
-        return primary()
+        return call()
+    }
+
+    private fun finishCall(callee: Expr): Expr {
+        val arguments = ArrayList<Expr>()
+
+        if (!check(TokenType.RIGHT_PAREN)) {
+            do {
+                if (arguments.size >= 8) {
+                    error(peek(), "Cannot have more than 8 arguments.");
+                }
+                arguments.add(expression())
+            } while (match(TokenType.COMMA))
+        }
+
+        val paren = consume(TokenType.RIGHT_PAREN, "Expect ')' after arguments.")
+
+        return Expr.Call(callee, paren, arguments)
+    }
+
+    private fun call(): Expr {
+        var expr = primary()
+
+        while (match(TokenType.LEFT_PAREN)) {
+            expr = finishCall(expr)
+        }
+
+        return expr
     }
 
     private fun primary(): Expr {
