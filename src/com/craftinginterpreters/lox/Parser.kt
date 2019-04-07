@@ -35,6 +35,7 @@ class Parser(private val tokens: List<Token>) {
             match(TokenType.FOR) -> forStatement()
             match(TokenType.IF) -> ifStatement()
             match(TokenType.PRINT) -> printStatement()
+            match(TokenType.RETURN) -> returnStatement()
             match(TokenType.WHILE) -> whileStatement()
             match(TokenType.LEFT_BRACE) -> return Stmt.Block(block())
             else -> expressionStatement()
@@ -85,13 +86,15 @@ class Parser(private val tokens: List<Token>) {
         return Stmt.Print(value)
     }
 
-    private fun varDeclaration(): Stmt? {
-        val name = consume(TokenType.IDENTIFIER, "Expect variable name.")
+    private fun returnStatement(): Stmt {
+        val keyword = previous()
+        var value: Expr? = null
+        if (!check(TokenType.SEMICOLON))
+            value = expression()
 
-        val initializer = if (match(TokenType.EQUAL)) expression() else null
+        consume(TokenType.SEMICOLON, "Expect ';' after return value")
 
-        consume(TokenType.SEMICOLON, "Expect ';' after variable declaration.")
-        return Stmt.Var(name, initializer)
+        return Stmt.Return(keyword, value)
     }
 
     private fun whileStatement(): Stmt {
@@ -107,6 +110,15 @@ class Parser(private val tokens: List<Token>) {
         val value = expression()
         consume(TokenType.SEMICOLON, "Expect ';' after value")
         return Stmt.Expression(value)
+    }
+
+    private fun varDeclaration(): Stmt? {
+        val name = consume(TokenType.IDENTIFIER, "Expect variable name.")
+
+        val initializer = if (match(TokenType.EQUAL)) expression() else null
+
+        consume(TokenType.SEMICOLON, "Expect ';' after variable declaration.")
+        return Stmt.Var(name, initializer)
     }
 
     private fun function(kind: String): Stmt {
