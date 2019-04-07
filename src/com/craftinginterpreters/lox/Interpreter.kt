@@ -3,7 +3,7 @@ package com.craftinginterpreters.lox
 class Interpreter : Expr.Visitor<Any?>, Stmt.Visitor<Unit> {
     class RuntimeError(val token: Token, message: String) : RuntimeException(message)
 
-    private val globals = Environment()
+    val globals = Environment()
     private var environment = globals
 
     init {
@@ -30,6 +30,12 @@ class Interpreter : Expr.Visitor<Any?>, Stmt.Visitor<Unit> {
         } catch (e: RuntimeError) {
             Lox.runtimeError(e)
         }
+    }
+
+    override fun visitAssignExpr(expr: Expr.Assign) {
+        val value = evaluate(expr.value)
+
+        environment.assign(expr.name, value)
     }
 
     override fun visitBinaryExpr(expr: Expr.Binary): Any? {
@@ -183,12 +189,12 @@ class Interpreter : Expr.Visitor<Any?>, Stmt.Visitor<Unit> {
         stmt.accept(this)
     }
 
-    private fun executeBlock(stmt: Stmt.Block, environment: Environment) {
+    fun executeBlock(statements: List<Stmt>, environment: Environment) {
         val previous = this.environment
         try {
             this.environment = environment
 
-            stmt.statements.forEach {
+            statements.forEach {
                 execute(it)
             }
         } finally {
@@ -197,11 +203,17 @@ class Interpreter : Expr.Visitor<Any?>, Stmt.Visitor<Unit> {
     }
 
     override fun visitBlockStmt(stmt: Stmt.Block) {
-        executeBlock(stmt, Environment(environment))
+        executeBlock(stmt.statements, Environment(environment))
     }
 
     override fun visitExpressionStmt(stmt: Stmt.Expression) {
         evaluate(stmt.expression)
+    }
+
+    override fun visitFunctionStmt(stmt: Stmt.Function) {
+        val function = LoxFunction(stmt)
+        environment.define(stmt.name.lexeme, function)
+        return
     }
 
     override fun visitIfStmt(stmt: Stmt.If) {
@@ -228,9 +240,5 @@ class Interpreter : Expr.Visitor<Any?>, Stmt.Visitor<Unit> {
         }
     }
 
-    override fun visitAssignExpr(expr: Expr.Assign) {
-        val value = evaluate(expr.value)
 
-        environment.assign(expr.name, value)
-    }
 }

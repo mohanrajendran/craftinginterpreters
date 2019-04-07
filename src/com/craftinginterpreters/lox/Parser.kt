@@ -20,6 +20,7 @@ class Parser(private val tokens: List<Token>) {
     private fun declaration(): Stmt? {
         return try {
             when {
+                match(TokenType.FUN) -> function("function")
                 match(TokenType.VAR) -> varDeclaration()
                 else -> statement()
             }
@@ -106,6 +107,27 @@ class Parser(private val tokens: List<Token>) {
         val value = expression()
         consume(TokenType.SEMICOLON, "Expect ';' after value")
         return Stmt.Expression(value)
+    }
+
+    private fun function(kind: String): Stmt {
+        val name = consume(TokenType.IDENTIFIER, "Expect $kind name.")
+        consume(TokenType.LEFT_PAREN, "Expect '(' after $kind name.")
+
+        val parameters = ArrayList<Token>()
+        if (!check(TokenType.RIGHT_PAREN)) {
+            do {
+                if (parameters.size >= 8)
+                    error(peek(), "Cannot have more than 8 parameters.")
+
+                parameters.add(consume(TokenType.IDENTIFIER, "Expect parameter name."))
+            } while (match(TokenType.COMMA))
+        }
+
+        consume(TokenType.RIGHT_PAREN, "Expect ')' after parameters.")
+        consume(TokenType.LEFT_BRACE, "Expect '{' before $kind body.")
+
+        val body = block()
+        return Stmt.Function(name, parameters, body)
     }
 
     private fun block(): List<Stmt> {
