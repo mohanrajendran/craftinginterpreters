@@ -104,7 +104,7 @@ class Interpreter : Expr.Visitor<Any?>, Stmt.Visitor<Unit> {
         if (callee !is LoxCallable)
             throw RuntimeError(expr.paren, "Can only call functions and classes")
 
-        val function = callee as LoxCallable
+        val function = callee
         if (arguments.size != function.arity())
             throw RuntimeError(expr.paren, "Expected ${function.arity()} arguments but got ${arguments.size}.")
 

@@ -59,11 +59,14 @@ class Parser(private val tokens: List<Token>) {
 
         var body = statement()
 
+        // evaluate increment at the end of each body evaluation
         if (increment != null) body = Stmt.Block(arrayListOf(body, Stmt.Expression(increment)))
 
+        // de-sugar to a while loop that continues execution while condition is true
         if (condition == null) condition = Expr.Literal(true)
         body = Stmt.While(condition, body)
 
+        // add an initialization expression at the top
         if (initializer != null) body = Stmt.Block(arrayListOf(initializer, body))
 
         return body
@@ -88,9 +91,8 @@ class Parser(private val tokens: List<Token>) {
 
     private fun returnStatement(): Stmt {
         val keyword = previous()
-        var value: Expr? = null
-        if (!check(TokenType.SEMICOLON))
-            value = expression()
+
+        val value = if (!check(TokenType.SEMICOLON)) expression() else null
 
         consume(TokenType.SEMICOLON, "Expect ';' after return value")
 
@@ -112,13 +114,15 @@ class Parser(private val tokens: List<Token>) {
         return Stmt.Expression(value)
     }
 
-    private fun varDeclaration(): Stmt? {
-        val name = consume(TokenType.IDENTIFIER, "Expect variable name.")
+    private fun block(): List<Stmt> {
+        val statements = ArrayList<Stmt>()
 
-        val initializer = if (match(TokenType.EQUAL)) expression() else null
+        while (!check(TokenType.RIGHT_BRACE) && !isAtEnd()) {
+            statements.add(declaration()!!)
+        }
 
-        consume(TokenType.SEMICOLON, "Expect ';' after variable declaration.")
-        return Stmt.Var(name, initializer)
+        consume(TokenType.RIGHT_BRACE, "Expect '}' after block.")
+        return statements
     }
 
     private fun function(kind: String): Stmt {
@@ -142,15 +146,13 @@ class Parser(private val tokens: List<Token>) {
         return Stmt.Function(name, parameters, body)
     }
 
-    private fun block(): List<Stmt> {
-        val statements = ArrayList<Stmt>()
+    private fun varDeclaration(): Stmt? {
+        val name = consume(TokenType.IDENTIFIER, "Expect variable name.")
 
-        while (!check(TokenType.RIGHT_BRACE) && !isAtEnd()) {
-            statements.add(declaration()!!)
-        }
+        val initializer = if (match(TokenType.EQUAL)) expression() else null
 
-        consume(TokenType.RIGHT_BRACE, "Expect '}' after block.")
-        return statements
+        consume(TokenType.SEMICOLON, "Expect ';' after variable declaration.")
+        return Stmt.Var(name, initializer)
     }
 
     private fun assignment(): Expr {
@@ -260,7 +262,7 @@ class Parser(private val tokens: List<Token>) {
         if (!check(TokenType.RIGHT_PAREN)) {
             do {
                 if (arguments.size >= 8) {
-                    error(peek(), "Cannot have more than 8 arguments.");
+                    error(peek(), "Cannot have more than 8 arguments.")
                 }
                 arguments.add(expression())
             } while (match(TokenType.COMMA))

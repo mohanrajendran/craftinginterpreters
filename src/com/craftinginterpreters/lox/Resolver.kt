@@ -31,6 +31,7 @@ class Resolver(private val interpreter: Interpreter) : Expr.Visitor<Unit>, Stmt.
             define(it)
         }
         resolve(function.body)
+        endScope()
 
         currentFunction = enclosingFunction
     }
