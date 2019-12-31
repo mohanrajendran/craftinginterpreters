@@ -20,6 +20,7 @@ class Parser(private val tokens: List<Token>) {
     private fun declaration(): Stmt? {
         return try {
             when {
+                match(TokenType.CLASS) -> classDeclaration()
                 match(TokenType.FUN) -> function("function")
                 match(TokenType.VAR) -> varDeclaration()
                 else -> statement()
@@ -28,6 +29,20 @@ class Parser(private val tokens: List<Token>) {
             synchronize()
             null
         }
+    }
+
+    private fun classDeclaration(): Stmt {
+        val name = consume(TokenType.IDENTIFIER, "Expect class name.")
+        consume(TokenType.LEFT_BRACE, "Expect '{' before class body")
+
+        val methods = ArrayList<Stmt.Function>();
+        while(!check(TokenType.RIGHT_BRACE) && !isAtEnd()) {
+            methods.add(function("method"))
+        }
+
+        consume(TokenType.RIGHT_BRACE, "Expect '}' after class body.")
+
+        return Stmt.Class(name, methods)
     }
 
     private fun statement(): Stmt {
@@ -125,7 +140,7 @@ class Parser(private val tokens: List<Token>) {
         return statements
     }
 
-    private fun function(kind: String): Stmt {
+    private fun function(kind: String): Stmt.Function {
         val name = consume(TokenType.IDENTIFIER, "Expect $kind name.")
         consume(TokenType.LEFT_PAREN, "Expect '(' after $kind name.")
 
@@ -256,6 +271,16 @@ class Parser(private val tokens: List<Token>) {
         return call()
     }
 
+    private fun call(): Expr {
+        var expr = primary()
+
+        while (match(TokenType.LEFT_PAREN)) {
+            expr = finishCall(expr)
+        }
+
+        return expr
+    }
+
     private fun finishCall(callee: Expr): Expr {
         val arguments = ArrayList<Expr>()
 
@@ -271,16 +296,6 @@ class Parser(private val tokens: List<Token>) {
         val paren = consume(TokenType.RIGHT_PAREN, "Expect ')' after arguments.")
 
         return Expr.Call(callee, paren, arguments)
-    }
-
-    private fun call(): Expr {
-        var expr = primary()
-
-        while (match(TokenType.LEFT_PAREN)) {
-            expr = finishCall(expr)
-        }
-
-        return expr
     }
 
     private fun primary(): Expr {
