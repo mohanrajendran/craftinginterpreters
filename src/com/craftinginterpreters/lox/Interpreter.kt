@@ -1,5 +1,6 @@
 package com.craftinginterpreters.lox
 
+
 class Interpreter : Expr.Visitor<Any?>, Stmt.Visitor<Unit> {
     class RuntimeError(val token: Token, message: String) : RuntimeException(message)
 
@@ -147,6 +148,20 @@ class Interpreter : Expr.Visitor<Any?>, Stmt.Visitor<Unit> {
         return value
     }
 
+    override fun visitSuperExpr(expr: Expr.Super): Any? {
+        val distance = locals[expr]!!
+        val superclass = environment.getAt(distance, "super") as LoxClass
+        val superinstance = environment.getAt(distance-1, "this") as LoxInstance
+
+        val method = superclass.findMethod(expr.method.lexeme)
+
+        if (method == null) {
+            throw RuntimeError(expr.method, "Undefined property '${expr.method.lexeme}'.")
+        }
+
+        return method.bind(superinstance)
+    }
+
     override fun visitThisExpr(expr: Expr.This): Any? {
         return lookUpVariable(expr.keyword, expr)
     }
@@ -246,7 +261,19 @@ class Interpreter : Expr.Visitor<Any?>, Stmt.Visitor<Unit> {
     }
 
     override fun visitClassStmt(stmt: Stmt.Class) {
+        var superclass: LoxClass? = null
+        if (stmt.superclass != null) {
+            val superklass = evaluate(stmt.superclass)
+            if (superklass !is LoxClass)
+                throw RuntimeError(stmt.superclass.name, "Superclass must be a class.")
+            superclass = superklass
+        }
         environment.define(stmt.name.lexeme, null)
+
+        if (stmt.superclass != null) {
+            environment = Environment(environment)
+            environment.define("super", superclass)
+        }
 
         val methods = HashMap<String, LoxFunction>()
         stmt.methods.forEach {
@@ -254,7 +281,10 @@ class Interpreter : Expr.Visitor<Any?>, Stmt.Visitor<Unit> {
             methods[it.name.lexeme] = function
         }
 
-        val klass = LoxClass(stmt.name.lexeme, methods)
+        val klass = LoxClass(stmt.name.lexeme, superclass, methods)
+
+        if(stmt.superclass != null) environment = environment.enclosing!!
+
         environment.assign(stmt.name, klass)
     }
 
