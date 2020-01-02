@@ -59,3 +59,39 @@ for (var i = 0; i < 20; i = i + 1) {
 class Bagel {}
 var bagel = Bagel();
 print bagel;
+bagel.schmear = "Cream cheese";
+print bagel.schmear;
+
+class Bacon {
+  eat() {
+    print "Crunch crunch crunch!";
+  }
+}
+
+Bacon().eat();
+
+class Thing {
+  getCallback() {
+    fun localFunction() {
+      print this;
+    }
+
+    return localFunction;
+  }
+}
+
+var callback = Thing().getCallback();
+callback();
+
+class Circle {
+  init(radius) {
+    this.radius = radius;
+  }
+
+  area() {
+    return 3.141592653 * this.radius * this.radius;
+  }
+}
+
+var circle = Circle(4);
+print circle.area();
