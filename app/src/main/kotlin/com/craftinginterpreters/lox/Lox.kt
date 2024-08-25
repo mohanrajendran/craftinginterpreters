@@ -28,7 +28,8 @@ object Lox {
 
     fun runPrompt() {
         while (true) {
-            run(readLine()!!)
+            print("> ")
+            run(readln())
             hadError = false
         }
     }
